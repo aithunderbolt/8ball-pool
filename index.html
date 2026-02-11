@@ -2,7 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1a1a2e">
+<link rel="manifest" href="manifest.json">
 <title>8 Ball Pool - Perks Edition</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -13,9 +17,15 @@
     align-items: center;
     justify-content: center;
     min-height: 100vh;
+    min-height: 100dvh;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     overflow: hidden;
     user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+    -webkit-touch-callout: none;
+    overscroll-behavior: none;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   }
   #hud {
     display: flex;
@@ -63,13 +73,14 @@
     position: relative;
     border-radius: 16px;
     box-shadow: 0 0 60px rgba(0,0,0,0.5), 0 0 120px rgba(0,0,0,0.3);
+    transform-origin: center center;
   }
-  canvas { display: block; border-radius: 12px; }
+  canvas { display: block; border-radius: 12px; touch-action: none; }
   #powerBarContainer {
-    position: absolute; right: -40px; top: 50%; transform: translateY(-50%);
-    width: 20px; height: 300px; background: rgba(0,0,0,0.5);
+    position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+    width: 20px; height: 200px; background: rgba(0,0,0,0.5);
     border-radius: 10px; border: 2px solid rgba(255,255,255,0.2);
-    overflow: hidden; display: none;
+    overflow: hidden; display: none; z-index: 10;
   }
   #powerBar {
     position: absolute; bottom: 0; width: 100%;
@@ -168,6 +179,56 @@
   }
   .btn:hover { transform: scale(1.05); box-shadow: 0 6px 25px rgba(233,69,96,0.5); }
   #instructions { color: #555; font-size: 11px; margin-top: 4px; }
+
+  /* ─── Landscape rotation hint ─── */
+  #rotateHint {
+    display: none;
+    position: fixed; inset: 0; z-index: 9999;
+    background: #1a1a2e; color: #fff;
+    flex-direction: column; align-items: center; justify-content: center;
+    font-size: 18px; text-align: center; gap: 16px;
+  }
+  #rotateHint .rotate-icon {
+    font-size: 64px;
+    animation: rotateHintPulse 2s ease-in-out infinite;
+  }
+  @keyframes rotateHintPulse {
+    0%, 100% { transform: rotate(0deg); opacity: 1; }
+    50% { transform: rotate(90deg); opacity: 0.6; }
+  }
+
+  @media (orientation: portrait) and (max-width: 900px) {
+    #rotateHint { display: flex; }
+    #hud, #canvasContainer, #perkBar, #instructions { display: none !important; }
+  }
+
+  /* ─── Small landscape phones ─── */
+  @media (max-height: 500px) and (orientation: landscape) {
+    #hud { gap: 8px; margin-bottom: 4px; font-size: 11px; }
+    .player-info { padding: 3px 8px; min-width: 120px; border-radius: 12px; }
+    .player-dot { width: 10px; height: 10px; }
+    #message { font-size: 11px; }
+    #msgCol { min-width: 100px; }
+    .score-ball { width: 11px; height: 11px; font-size: 5px; }
+    #perkBar { gap: 4px; margin-top: 4px; min-height: 36px; }
+    .perk-card { width: 60px; height: 32px; border-radius: 6px; }
+    .perk-card .perk-icon { font-size: 13px; }
+    .perk-card .perk-name { font-size: 7px; margin-top: 1px; }
+    .perk-label { font-size: 9px; }
+    #instructions { font-size: 9px; margin-top: 2px; }
+  }
+
+  /* ─── Small screen modals ─── */
+  @media (max-width: 600px) {
+    .modal { padding: 24px 28px; border-radius: 14px; }
+    .modal h1 { font-size: 24px; }
+    .modal p { font-size: 12px; margin-bottom: 16px; }
+    .btn { padding: 10px 28px; font-size: 15px; }
+    #rouletteBox { padding: 16px 20px; min-width: 200px; }
+    #rouletteBox h3 { font-size: 12px; }
+    #rouletteSlot { font-size: 36px; min-height: 48px; }
+    #rouletteName { font-size: 14px; }
+  }
 </style>
 </head>
 <body>
@@ -202,7 +263,13 @@
   <div id="perkSlots"></div>
 </div>
 
-<div id="instructions">Click & drag to aim · Pull back for power · Release to shoot · Click a perk card to activate before shooting</div>
+<div id="instructions">Tap & drag to aim · Pull back for power · Release to shoot · Tap a perk card to activate before shooting</div>
+
+<div id="rotateHint">
+  <div class="rotate-icon">&#128241;</div>
+  <div>Please rotate your device to landscape</div>
+  <div style="font-size: 13px; color: #888;">This game is best played in landscape orientation</div>
+</div>
 
 <div id="roulette">
   <div id="rouletteBox">
@@ -258,6 +325,33 @@
   const rouletteSlot = document.getElementById('rouletteSlot');
   const rouletteName = document.getElementById('rouletteName');
   const rouletteDesc = document.getElementById('rouletteDesc');
+
+  // ─── Responsive Scaling ───
+  function resizeCanvas() {
+    const container = document.getElementById('canvasContainer');
+    const hudH = document.getElementById('hud').offsetHeight || 40;
+    const perkH = document.getElementById('perkBar').offsetHeight || 52;
+    const instrH = document.getElementById('instructions').offsetHeight || 20;
+    const pad = 16;
+
+    const availW = window.innerWidth - 16;
+    const availH = window.innerHeight - hudH - perkH - instrH - pad;
+
+    const canvasW = canvas.width;  // 972
+    const canvasH = canvas.height; // 552
+
+    const scale = Math.min(availW / canvasW, availH / canvasH, 1);
+
+    container.style.width = canvasW + 'px';
+    container.style.height = canvasH + 'px';
+    container.style.transform = `scale(${scale})`;
+    container.style.marginTop = `-${canvasH * (1 - scale) / 2}px`;
+    container.style.marginBottom = `-${canvasH * (1 - scale) / 2}px`;
+    container.style.marginLeft = `-${canvasW * (1 - scale) / 2}px`;
+    container.style.marginRight = `-${canvasW * (1 - scale) / 2}px`;
+  }
+  window.addEventListener('resize', resizeCanvas);
+  window.addEventListener('orientationchange', () => setTimeout(resizeCanvas, 150));
 
   const BALL_COLORS = [
     '#ffffff','#f5d442','#2255cc','#cc2222','#6622aa','#ee7722','#228833','#882222',
@@ -1144,7 +1238,8 @@
     const rect = canvas.getBoundingClientRect();
     const sx = canvas.width / rect.width;
     const sy = canvas.height / rect.height;
-    return { x: (e.clientX - rect.left) * sx, y: (e.clientY - rect.top) * sy };
+    const src = e.touches ? e.touches[0] : (e.changedTouches ? e.changedTouches[0] : e);
+    return { x: (src.clientX - rect.left) * sx, y: (src.clientY - rect.top) * sy };
   }
 
   canvas.addEventListener('mousedown', e => {
@@ -1237,6 +1332,101 @@
     }
   });
 
+  // ─── Touch Input ───
+  canvas.addEventListener('touchstart', e => {
+    e.preventDefault();
+    const pos = getMousePos(e);
+    mousePos = pos;
+
+    if (gamePhase === 'placing') {
+      const cue = balls.find(b => b.id === 0);
+      let px = pos.x, py = pos.y;
+      const maxX = CUSHION + TABLE_W * 0.25;
+      px = Math.max(CUSHION + BALL_R, Math.min(px, maxX));
+      py = Math.max(CUSHION + BALL_R, Math.min(py, CUSHION + TABLE_H - BALL_R));
+      const overlap = balls.some(b => b.id !== 0 && !b.pocketed && Math.hypot(b.x - px, b.y - py) < BALL_R * 2.5);
+      if (!overlap) {
+        cue.pocketed = false;
+        cue.x = px; cue.y = py;
+        placingCue = false;
+        gamePhase = 'aiming';
+        msgEl.textContent = `Player ${currentPlayer}'s turn`;
+        renderPerkBar();
+      }
+      return;
+    }
+
+    if (gamePhase === 'placingFree') {
+      const cue = balls.find(b => b.id === 0);
+      let px = pos.x, py = pos.y;
+      px = Math.max(CUSHION + BALL_R, Math.min(px, CUSHION + TABLE_W - BALL_R));
+      py = Math.max(CUSHION + BALL_R, Math.min(py, CUSHION + TABLE_H - BALL_R));
+      const overlap = balls.some(b => b.id !== 0 && !b.pocketed && Math.hypot(b.x - px, b.y - py) < BALL_R * 2.5);
+      if (!overlap) {
+        cue.pocketed = false;
+        cue.x = px; cue.y = py;
+        gamePhase = 'aiming';
+        msgEl.textContent = `Cue ball placed! Player ${currentPlayer}'s turn`;
+        renderPerkBar();
+      }
+      return;
+    }
+
+    if (gamePhase === 'aiming') {
+      const cue = balls.find(b => b.id === 0);
+      const d = Math.hypot(pos.x - cue.x, pos.y - cue.y);
+      if (d < BALL_R * 5) {
+        aimStart = { x: cue.x, y: cue.y };
+        powerBarContainer.style.display = 'block';
+      }
+    }
+  }, { passive: false });
+
+  document.addEventListener('touchmove', e => {
+    if (aimStart) e.preventDefault();
+    const touch = e.touches[0];
+    if (!touch) return;
+    mousePos = getMousePos(e);
+    if (aimStart) {
+      const dist = Math.hypot(aimStart.x - mousePos.x, aimStart.y - mousePos.y);
+      const pct = Math.min(dist / 200, 1) * 100;
+      powerBarEl.style.height = pct + '%';
+    }
+  }, { passive: false });
+
+  document.addEventListener('touchend', e => {
+    if (gamePhase === 'aiming' && aimStart) {
+      e.preventDefault();
+      mousePos = getMousePos(e);
+      const cue = balls.find(b => b.id === 0);
+      const dx = aimStart.x - mousePos.x;
+      const dy = aimStart.y - mousePos.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist > 10) {
+        let maxP = MAX_POWER;
+        if (activePerk === 'powerSurge') maxP = MAX_POWER * 2;
+        if (frozenPlayer === currentPlayer) maxP = MAX_POWER * 0.4;
+
+        const power = Math.min(dist / 200, 1) * maxP;
+        const nx = dx / dist, ny = dy / dist;
+        cue.vx = nx * power;
+        cue.vy = ny * power;
+        gamePhase = 'shooting';
+        pocketedThisTurn = [];
+        cueBallPocketed = false;
+        firstContactBall = null;
+        msgEl.textContent = '';
+
+        if (frozenPlayer === currentPlayer) frozenPlayer = 0;
+      }
+
+      aimStart = null;
+      powerBarContainer.style.display = 'none';
+      powerBarEl.style.height = '0%';
+    }
+  }, { passive: false });
+
   // ─── Start / Restart ───
   document.getElementById('startBtn').addEventListener('click', startGame);
   overlayEl.querySelector('.btn').addEventListener('click', startGame);
@@ -1259,6 +1449,7 @@
     msgEl.textContent = 'Break the rack!';
     updateHUD();
     renderPerkBar();
+    resizeCanvas();
   }
 
   // ─── Game Loop ───
@@ -1272,7 +1463,13 @@
     requestAnimationFrame(loop);
   }
 
+  resizeCanvas();
   loop();
+
+  // ─── PWA Service Worker ───
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  }
 })();
 </script>
 </body>
