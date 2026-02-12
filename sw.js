@@ -1,8 +1,10 @@
-const CACHE_NAME = '8ball-pool-v1';
+const CACHE_NAME = '8ball-pool-v2';
 const ASSETS = [
   './',
   './index.html',
-  './manifest.json'
+  './manifest.json',
+  './icon-192.svg',
+  './icon-512.svg'
 ];
 
 self.addEventListener('install', event => {

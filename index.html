@@ -7,6 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#1a1a2e">
 <link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.svg">
 <title>8 Ball Pool - Perks Edition</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -179,6 +180,18 @@
   }
   .btn:hover { transform: scale(1.05); box-shadow: 0 6px 25px rgba(233,69,96,0.5); }
   #instructions { color: #555; font-size: 11px; margin-top: 4px; }
+  #pwaBar {
+    position: fixed; top: 8px; right: 8px; z-index: 100;
+    display: flex; gap: 6px;
+  }
+  .pwa-btn {
+    background: rgba(233,69,96,0.9); color: #fff; border: none;
+    padding: 6px 12px; font-size: 12px; border-radius: 16px;
+    cursor: pointer; font-weight: 600; backdrop-filter: blur(4px);
+    transition: opacity 0.2s;
+  }
+  .pwa-btn:hover { opacity: 0.85; }
+  .pwa-btn.hidden { display: none; }
 
   /* ─── Landscape rotation hint ─── */
   #rotateHint {
@@ -232,6 +245,11 @@
 </style>
 </head>
 <body>
+
+<div id="pwaBar">
+  <button class="pwa-btn hidden" id="installBtn" onclick="installPWA()">Install App</button>
+  <button class="pwa-btn" id="fsBtn" onclick="goFullscreen()">&#x26F6; Fullscreen</button>
+</div>
 
 <div id="hud">
   <div class="player-info active" id="p1info">
@@ -1469,6 +1487,54 @@
   // ─── PWA Service Worker ───
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').catch(() => {});
+  }
+
+  // ─── PWA Install Prompt ───
+  let deferredPrompt = null;
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    document.getElementById('installBtn').classList.remove('hidden');
+  });
+  window.installPWA = async function() {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const result = await deferredPrompt.userChoice;
+    if (result.outcome === 'accepted') {
+      document.getElementById('installBtn').classList.add('hidden');
+    }
+    deferredPrompt = null;
+  };
+  window.addEventListener('appinstalled', () => {
+    document.getElementById('installBtn').classList.add('hidden');
+    deferredPrompt = null;
+  });
+
+  // ─── Fullscreen Toggle ───
+  window.goFullscreen = function() {
+    const el = document.documentElement;
+    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+      (el.requestFullscreen || el.webkitRequestFullscreen).call(el).then(() => {
+        document.getElementById('fsBtn').innerHTML = '&#x26F6; Exit FS';
+        if (screen.orientation && screen.orientation.lock) {
+          screen.orientation.lock('landscape').catch(() => {});
+        }
+      }).catch(() => {});
+    } else {
+      (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+      document.getElementById('fsBtn').innerHTML = '&#x26F6; Fullscreen';
+    }
+  };
+  document.addEventListener('fullscreenchange', () => {
+    const btn = document.getElementById('fsBtn');
+    btn.innerHTML = document.fullscreenElement ? '&#x26F6; Exit FS' : '&#x26F6; Fullscreen';
+    resizeCanvas();
+  });
+  // Hide fullscreen button if already running as installed PWA
+  if (window.matchMedia('(display-mode: fullscreen)').matches ||
+      window.matchMedia('(display-mode: standalone)').matches ||
+      window.navigator.standalone === true) {
+    document.getElementById('fsBtn').classList.add('hidden');
   }
 })();
 </script>
