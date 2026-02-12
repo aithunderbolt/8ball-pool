@@ -4,7 +4,12 @@
       "Bash(git init:*)",
       "Bash(git -C d:DevRnDteststest12cc status)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(powershell:*)",
+      "Bash(del \"d:\\\\Dev\\\\RnD\\\\tests\\\\test12cc\\\\gen-icons.ps1\")",
+      "Bash(del \"d:\\\\Dev\\\\RnD\\\\tests\\\\test12cc\\\\icon-192.svg\")",
+      "Bash(del \"d:\\\\Dev\\\\RnD\\\\tests\\\\test12cc\\\\icon-512.svg\")"
     ]
   }
 }
