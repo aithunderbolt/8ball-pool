@@ -1530,11 +1530,23 @@
     btn.innerHTML = document.fullscreenElement ? '&#x26F6; Exit FS' : '&#x26F6; Fullscreen';
     resizeCanvas();
   });
-  // Hide fullscreen button if already running as installed PWA
-  if (window.matchMedia('(display-mode: fullscreen)').matches ||
+  // Auto-enter fullscreen when running as installed PWA (on first tap)
+  const isInstalledPWA = window.matchMedia('(display-mode: fullscreen)').matches ||
       window.matchMedia('(display-mode: standalone)').matches ||
-      window.navigator.standalone === true) {
+      window.navigator.standalone === true;
+  if (isInstalledPWA) {
     document.getElementById('fsBtn').classList.add('hidden');
+    const autoFS = () => {
+      const el = document.documentElement;
+      (el.requestFullscreen || el.webkitRequestFullscreen).call(el).catch(() => {});
+      if (screen.orientation && screen.orientation.lock) {
+        screen.orientation.lock('landscape').catch(() => {});
+      }
+      document.removeEventListener('click', autoFS);
+      document.removeEventListener('touchstart', autoFS);
+    };
+    document.addEventListener('click', autoFS, { once: true });
+    document.addEventListener('touchstart', autoFS, { once: true });
   }
 })();
 </script>
