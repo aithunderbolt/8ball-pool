@@ -1,4 +1,4 @@
-const CACHE_NAME = '8ball-pool-v3';
+const CACHE_NAME = '8ball-pool-v4';
 const ASSETS = [
   './',
   './index.html',
@@ -24,7 +24,18 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
+  const request = event.request;
+
+  // Navigation requests (PWA launch, page loads) — network first, fall back to cached index.html
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request).catch(() => caches.match('./index.html'))
+    );
+    return;
+  }
+
+  // All other assets — cache first, fall back to network
   event.respondWith(
-    caches.match(event.request).then(cached => cached || fetch(event.request))
+    caches.match(request).then(cached => cached || fetch(request))
   );
 });
